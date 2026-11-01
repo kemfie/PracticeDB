@@ -149,3 +149,58 @@ UNION ALL SELECT 'EmployeeProjects', COUNT(*) FROM EmployeeProjects;
 Все таблицы заполнены в рамках требований (3–4 / 8–10 / 4–5 / ≥10).
 Вставки выполнены одним `INSERT … VALUES (…), (…), …;` на каждую таблицу.
 
+
+## Task 03 — SELECT + WHERE: базовые выборки
+
+### SQL
+
+```sql
+USE PracticeDB;
+
+-- 1) Зарплата > 50000
+SELECT EmployeeId, EmployeeName, Salary
+FROM Employees
+WHERE Salary > 50000
+ORDER BY Salary DESC;
+
+-- 2) Нанятые в 2023
+SELECT EmployeeId, EmployeeName, HireDate
+FROM Employees
+WHERE YEAR(HireDate) = 2023
+ORDER BY HireDate;
+
+-- 3) Имя начинается на «А»
+SELECT EmployeeId, EmployeeName
+FROM Employees
+WHERE EmployeeName LIKE N'А%'
+ORDER BY EmployeeName;
+
+-- 4) Отдел 2
+SELECT EmployeeId, EmployeeName, DepartmentId
+FROM Employees
+WHERE DepartmentId = 2
+ORDER BY EmployeeName;
+
+-- 5) Зарплата 40000–60000
+SELECT EmployeeId, EmployeeName, Salary
+FROM Employees
+WHERE Salary BETWEEN 40000 AND 60000
+ORDER BY Salary;
+```
+
+### Результат
+
+1) > 50000 — 7 строк (Лебедев 90000, Сидоров 72000, Иванова 65000,
+   Смирнова 61000, Орлов 58000, Кузнецова 55000, Волкова 52000).
+
+2) 2023 год — 2 строки: Иван Петров (2023-02-10), Елена Волкова (2023-06-01).
+
+3) LIKE N'А%' — 2 строки: Анна Иванова, Алексей Лебедев.
+
+4) DepartmentId = 2 — 3 строки: Ольга Смирнова, Дмитрий Орлов, Елена Волкова.
+
+5) BETWEEN 40000 AND 60000 — 6 строк: Соколова 43000, Морозов 45000,
+   Петров 48000, Волкова 52000, Кузнецова 55000, Орлов 58000.
+
+Все пять запросов вернули непустой результат, условия корректны.
+
