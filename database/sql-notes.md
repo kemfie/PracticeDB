@@ -803,3 +803,159 @@ UNION ALL оставил. Требование «разница видна по 
   имена колонок для сортировки берутся из первого SELECT.
 - UNION требует одинакового числа колонок и совместимых типов;
   имена колонок результата — из первого SELECT.
+
+
+  ## Task 16 — UPDATE: изменение данных
+
+### SQL
+
+
+```sql
+USE PracticeDB;
+
+-- === ДО ===
+SELECT EmployeeId, EmployeeName, Salary, HireDate, DepartmentId
+FROM Employees ORDER BY EmployeeId;
+
+BEGIN TRANSACTION;
+
+-- UPDATE 1: зарплата сотрудников отдела 1 +10%
+UPDATE Employees SET Salary = Salary * 1.10 WHERE DepartmentId = 1;
+
+-- UPDATE 2: зарплата нанятых до 2022 года +5000
+UPDATE Employees SET Salary = Salary + 5000 WHERE HireDate < '2022-01-01';
+
+-- UPDATE 3: HireDate одного сотрудника (Id 4)
+UPDATE Employees SET HireDate = '2023-03-01' WHERE EmployeeId = 4;
+
+-- === ПОСЛЕ ===
+SELECT EmployeeId, EmployeeName, Salary, HireDate, DepartmentId
+FROM Employees ORDER BY EmployeeId;
+
+COMMIT;
+```
+
+### Результат
+
+**До UPDATE (исходные значения):**
+
+| Id | Имя | Salary | HireDate | Dept |
+|----|-----|--------|----------|------|
+| 1 | Анна Иванова | 65000.00 | 2020-03-15 | 1 |
+| 2 | Пётр Сидоров | 72000.00 | 2019-07-01 | 1 |
+| 3 | Мария Кузнецова | 55000.00 | 2021-11-20 | 1 |
+| 4 | Иван Петров | 48000.00 | 2023-02-10 | 1 |
+| 5 | Ольга Смирнова | 61000.00 | 2020-09-05 | 2 |
+| 6 | Дмитрий Орлов | 58000.00 | 2022-04-18 | 2 |
+| 7 | Елена Волкова | 52000.00 | 2023-06-01 | 2 |
+| 8 | Сергей Морозов | 45000.00 | 2021-12-12 | 3 |
+| 9 | Наталья Соколова | 43000.00 | 2024-01-15 | 3 |
+| 10 | Алексей Лебедев | 90000.00 | 2018-05-25 | 4 |
+
+**После трёх UPDATE:**
+
+| Id | Имя | Salary было → стало | HireDate было → стало | Dept |
+|----|-----|---------------------|------------------------|------|
+| 1 | Анна Иванова | 65000 → **76500.00** | 2020-03-15 (без изменений) | 1 |
+| 2 | Пётр Сидоров | 72000 → **84200.00** | 2019-07-01 (без изменений) | 1 |
+| 3 | Мария Кузнецова | 55000 → **65500.00** | 2021-11-20 (без изменений) | 1 |
+| 4 | Иван Петров | 48000 → **52800.00** | 2023-02-10 → **2023-03-01** | 1 |
+| 5 | Ольга Смирнова | 61000 → **66000.00** | 2020-09-05 (без изменений) | 2 |
+| 6 | Дмитрий Орлов | 58000 → **58000.00** (не тронут) | 2022-04-18 (без изменений) | 2 |
+| 7 | Елена Волкова | 52000 → **52000.00** (не тронута) | 2023-06-01 (без изменений) | 2 |
+| 8 | Сергей Морозов | 45000 → **50000.00** | 2021-12-12 (без изменений) | 3 |
+| 9 | Наталья Соколова | 43000 → **43000.00** (не тронута) | 2024-01-15 (без изменений) | 3 |
+| 10 | Алексей Лебедев | 90000 → **95000.00** | 2018-05-25 (без изменений) | 4 |
+
+**Кто изменён:**
+- По зарплате: Id **1, 2, 3, 4** (UPDATE 1, отдел 1) и Id **1, 2, 3, 5, 8, 10** (UPDATE 2, HireDate < 2022). Объединение — **7 строк** (1, 2, 3, 4, 5, 8, 10).
+- Не тронуты по зарплате: **6, 7, 9** (не из отдела 1 и наняты в 2022+).
+- HireDate изменён только у **Id 4**.
+
+
+
+
+  ## Task 17 — DELETE: удаление данных
+
+### SQL
+
+```sql
+-- Полный скрипт — database/tasks/task17_delete.sql
+USE PracticeDB;
+
+-- === ДО ===
+SELECT COUNT(*) AS EP_Count FROM EmployeeProjects;                    -- 14
+SELECT COUNT(*) AS Hours0_Count FROM EmployeeProjects WHERE Hours=0;  -- 0
+
+BEGIN TRANSACTION;
+
+-- 1) DELETE с WHERE: назначения с Hours = 0 (в наших данных таких нет)
+SELECT COUNT(*) AS Before_Delete FROM EmployeeProjects WHERE Hours=0; -- 0
+DELETE FROM EmployeeProjects WHERE Hours = 0;
+SELECT COUNT(*) AS After_Delete FROM EmployeeProjects WHERE Hours=0;  -- 0
+SELECT COUNT(*) AS Total_After FROM EmployeeProjects;                 -- 14
+
+-- 2) DELETE сотрудника Id 4: сначала назначения (FK!), потом сотрудник
+SELECT EmployeeId, EmployeeName FROM Employees WHERE EmployeeId = 4;              -- Иван Петров
+SELECT EmployeeId, ProjectId, Hours FROM EmployeeProjects WHERE EmployeeId = 4;    -- (4,2,90),(4,5,40)
+
+DELETE FROM EmployeeProjects WHERE EmployeeId = 4;
+SELECT COUNT(*) AS EP_After FROM EmployeeProjects;                    -- 12
+
+DELETE FROM Employees WHERE EmployeeId = 4;
+SELECT COUNT(*) AS Emp_After FROM Employees;                          -- 9
+SELECT COUNT(*) AS LeftForId4 FROM EmployeeProjects WHERE EmployeeId=4; -- 0
+
+-- 3) DELETE без WHERE — только на тестовой копии!
+SELECT * INTO EmployeeProjects_Test FROM EmployeeProjects;
+SELECT COUNT(*) AS Test_Before FROM EmployeeProjects_Test;            -- 12
+SELECT COUNT(*) AS Main_Before FROM EmployeeProjects;                 -- 12
+DELETE FROM EmployeeProjects_Test;                                    -- без WHERE!
+SELECT COUNT(*) AS Test_After FROM EmployeeProjects_Test;             -- 0
+SELECT COUNT(*) AS Main_After FROM EmployeeProjects;                  -- 12 (основная цела)
+DROP TABLE EmployeeProjects_Test;
+
+-- 4) Проверка FK: сирот нет
+SELECT COUNT(*) AS Orphans
+FROM EmployeeProjects ep
+LEFT JOIN Employees e ON e.EmployeeId = ep.EmployeeId
+WHERE e.EmployeeId IS NULL;                                           -- 0
+
+-- 5) Итоговые счётчики
+SELECT 'Employees' AS Tbl, COUNT(*) AS Cnt FROM Employees
+UNION ALL SELECT 'EmployeeProjects', COUNT(*) FROM EmployeeProjects
+UNION ALL SELECT 'Projects', COUNT(*) FROM Projects
+UNION ALL SELECT 'Departments', COUNT(*) FROM Departments;
+
+COMMIT;
+```
+
+### Результат
+
+| Шаг | Что | До | После |
+|-----|-----|-----|-------|
+| 1 | Hours = 0 в EmployeeProjects | 0 | 0 (таких нет) |
+| 2 | Назначения Id 4 | 2 | 0 |
+| 2 | EmployeeProjects всего | 14 | 12 |
+| 2 | Employees всего | 10 | 9 |
+| 3 | EmployeeProjects_Test | 12 | 0 (DELETE без WHERE) |
+| 3 | EmployeeProjects (основная) | 12 | 12 (не тронута) |
+| 4 | Orphans (сироты по FK) | — | 0 |
+| 5 | Итог: Employees / EmployeeProjects / Projects / Departments | | 9 / 12 / 5 / 4 |
+
+Удалены только целевые строки: 2 назначения Id 4 и сам сотрудник Id 4.
+Проекты, отделы и остальные сотрудники не тронуты. FK не нарушен
+(Orphans = 0).
+
+### Вывод
+
+- Hours=0 в наших данных нет — DELETE с WHERE Hours=0 удалил 0 строк
+  (корректно, задание говорит «если есть»).
+- Порядок удаления при FK: сначала дочерние (EmployeeProjects), потом
+  родительские (Employees). Наоборот — ошибка Msg 547 (FK violation).
+  ON DELETE CASCADE не настроен — удаление ручное.
+- DELETE без WHERE удаляет все строки — демонстрировали на копии
+  EmployeeProjects_Test; основная таблица не тронута (12 = 12).
+- SELECT COUNT(*) до и после каждого DELETE — обязательная проверка
+  (методичка требует).
+- После COMMIT база изменена; для Task 18+ перезапустить init.sql.
